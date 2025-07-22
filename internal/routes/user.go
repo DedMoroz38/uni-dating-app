@@ -14,4 +14,5 @@ func UserRoutes(router fiber.Router, queries *db.Queries) {
 	userRoutes.Post("/images", userController.UploadImages)
 	userRoutes.Get("/card/get_random", userController.GetRandomUser)
 	userRoutes.Post("/like/:userId", userController.LikeUser)
+	userRoutes.Post("/seed", userController.Seed)
 }

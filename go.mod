@@ -6,8 +6,10 @@ toolchain go1.23.11
 
 require (
 	github.com/arsmn/fiber-swagger/v2 v2.31.1
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/golang-jwt/jwt/v5 v5.2.3
+	github.com/jackc/pgtype v1.14.4
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/swaggo/swag v1.16.5
 	golang.org/x/crypto v0.40.0
@@ -22,6 +24,7 @@ require (
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

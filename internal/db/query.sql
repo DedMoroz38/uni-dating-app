@@ -9,6 +9,13 @@ INSERT INTO users (
   $1, $2, $3, $4, $5
 );
 
+-- name: CreateUserAndReturnID :one
+INSERT INTO users (
+  username, email, password, created_at, updated_at
+) VALUES (
+  $1, $2, $3, $4, $5
+) RETURNING id;
+
 -- name: GetUserByEmail :one
 SELECT * FROM users
 WHERE email = $1;

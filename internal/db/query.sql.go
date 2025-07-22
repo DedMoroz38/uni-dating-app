@@ -58,6 +58,35 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const createUserAndReturnID = `-- name: CreateUserAndReturnID :one
+INSERT INTO users (
+  username, email, password, created_at, updated_at
+) VALUES (
+  $1, $2, $3, $4, $5
+) RETURNING id
+`
+
+type CreateUserAndReturnIDParams struct {
+	Username  string           `json:"username"`
+	Email     string           `json:"email"`
+	Password  string           `json:"password"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+}
+
+func (q *Queries) CreateUserAndReturnID(ctx context.Context, arg CreateUserAndReturnIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createUserAndReturnID,
+		arg.Username,
+		arg.Email,
+		arg.Password,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getRandomUserWithImages = `-- name: GetRandomUserWithImages :one
 SELECT
     u.id,

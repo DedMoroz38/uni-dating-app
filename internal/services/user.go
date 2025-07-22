@@ -3,14 +3,18 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/DedMoroz38/uni-dating-app/internal/db"
 	"github.com/DedMoroz38/uni-dating-app/internal/middleware"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type UserController struct {
@@ -110,4 +114,48 @@ func (uc *UserController) LikeUser(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": fmt.Sprintf("user %d liked", id)})
+}
+
+func (uc *UserController) Seed(c *fiber.Ctx) error {
+	images, err := os.ReadDir("./seed")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "cannot read seed directory"})
+	}
+
+	for _, image := range images {
+		createUserParams := db.CreateUserAndReturnIDParams{
+			Username:  gofakeit.Username(),
+			Email:     fmt.Sprintf("%s@soton.ac.uk", gofakeit.Username()),
+			Password:  gofakeit.Password(true, true, true, true, true, 10),
+			CreatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+			UpdatedAt: pgtype.Timestamp{Time: time.Now(), Valid: true},
+		}
+
+		userId, err := uc.db.CreateUserAndReturnID(c.Context(), createUserParams)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "cannot create user"})
+		}
+
+		sourcePath := filepath.Join("./seed", image.Name())
+		destPath := filepath.Join("./uploads", image.Name())
+
+		input, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read seed image"})
+
+		}
+
+		if err := os.WriteFile(destPath, input, 0644); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save seed image"})
+		}
+
+		createImageParams := db.CreateImageParams{
+			UserID: int32(userId),
+			Url:    destPath,
+		}
+		if err := uc.db.CreateImage(c.Context(), createImageParams); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "cannot create image"})
+		}
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "users seeded successfully"})
 }

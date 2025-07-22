@@ -11,6 +11,7 @@ import (
 type Querier interface {
 	CreateImage(ctx context.Context, arg CreateImageParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	CreateUserAndReturnID(ctx context.Context, arg CreateUserAndReturnIDParams) (int64, error)
 	GetRandomUserWithImages(ctx context.Context) (GetRandomUserWithImagesRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
