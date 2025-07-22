@@ -5,18 +5,20 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/server/main.go
+RUN /go/bin/sqlc generate
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o /main ./cmd/server/main.go
 
 FROM alpine:latest
 
-WORKDIR /app
+WORKDIR /
 
-COPY --from=builder /app/server .
-COPY --from=builder /app/internal/db/migration ./internal/db/migration
-COPY --from=builder /app/docs ./docs
+COPY --from=builder /main /main
 
 EXPOSE 3000
 
-CMD ["/app/server"] 
+CMD ["/main"] 

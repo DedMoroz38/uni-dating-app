@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      target: builder
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_SOURCE=postgresql://user:password@db:5432/uni_dating_app_db?sslmode=disable
+    depends_on:
+      - db
+    networks:
+      - app-network
+    volumes:
+      - .:/app
+    command: sh -c "go run ./cmd/server/main.go"
+
+  db:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=uni_dating_app_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./internal/db/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge

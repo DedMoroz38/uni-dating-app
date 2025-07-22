@@ -11,13 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createImage = `-- name: CreateImage :exec
+INSERT INTO images (
+    user_id,
+    url
+) VALUES (
+    $1,
+    $2
+)
+`
+
+type CreateImageParams struct {
+	UserID int32  `json:"user_id"`
+	Url    string `json:"url"`
+}
+
+func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) error {
+	_, err := q.db.Exec(ctx, createImage, arg.UserID, arg.Url)
+	return err
+}
+
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
-  username,
-  email,
-  password,
-  created_at,
-  updated_at
+  username, email, password, created_at, updated_at
 ) VALUES (
   $1, $2, $3, $4, $5
 )
@@ -39,5 +55,98 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
+	return err
+}
+
+const getRandomUserWithImages = `-- name: GetRandomUserWithImages :one
+SELECT
+    u.id,
+    u.username,
+    u.email,
+    u.created_at,
+    u.updated_at,
+    COALESCE(
+        (SELECT json_agg(json_build_object('url', i.url))
+        FROM images i
+        WHERE i.user_id = u.id),
+        '[]'::json
+    ) AS images
+FROM
+    users u
+ORDER BY
+    RANDOM()
+LIMIT 1
+`
+
+type GetRandomUserWithImagesRow struct {
+	ID        int64            `json:"id"`
+	Username  string           `json:"username"`
+	Email     string           `json:"email"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Images    interface{}      `json:"images"`
+}
+
+func (q *Queries) GetRandomUserWithImages(ctx context.Context) (GetRandomUserWithImagesRow, error) {
+	row := q.db.QueryRow(ctx, getRandomUserWithImages)
+	var i GetRandomUserWithImagesRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Images,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, username, email, password, created_at, updated_at FROM users
+WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, email, password, created_at, updated_at FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const likeUser = `-- name: LikeUser :exec
+INSERT INTO likes (user_id, n_of_likes)
+VALUES ($1, 1)
+ON CONFLICT (user_id) DO UPDATE
+SET n_of_likes = likes.n_of_likes + 1
+`
+
+func (q *Queries) LikeUser(ctx context.Context, userID int32) error {
+	_, err := q.db.Exec(ctx, likeUser, userID)
 	return err
 }

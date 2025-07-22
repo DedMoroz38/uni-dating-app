@@ -9,7 +9,12 @@ import (
 )
 
 type Querier interface {
+	CreateImage(ctx context.Context, arg CreateImageParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	GetRandomUserWithImages(ctx context.Context) (GetRandomUserWithImagesRow, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id int64) (User, error)
+	LikeUser(ctx context.Context, userID int32) error
 }
 
 var _ Querier = (*Queries)(nil)
