@@ -4,14 +4,14 @@ WHERE id = $1;
 
 -- name: CreateUser :exec
 INSERT INTO users (
-  username, email, password, created_at, updated_at
+  name, date_of_birth, course_id, email, password
 ) VALUES (
   $1, $2, $3, $4, $5
 );
 
 -- name: CreateUserAndReturnID :one
 INSERT INTO users (
-  username, email, password, created_at, updated_at
+  name, date_of_birth, course_id, email, password
 ) VALUES (
   $1, $2, $3, $4, $5
 ) RETURNING id;
@@ -32,8 +32,10 @@ INSERT INTO images (
 -- name: GetRandomUserWithImages :one
 SELECT
     u.id,
-    u.username,
+    u.name,
     u.email,
+    u.date_of_birth,
+    u.course_id,
     u.created_at,
     u.updated_at,
     COALESCE(
@@ -53,3 +55,14 @@ INSERT INTO likes (user_id, n_of_likes)
 VALUES ($1, 1)
 ON CONFLICT (user_id) DO UPDATE
 SET n_of_likes = likes.n_of_likes + 1;
+
+-- name: CreateCourse :one
+INSERT INTO courses (
+  name
+) VALUES (
+  $1
+) RETURNING *;
+
+-- name: ListCourses :many
+SELECT id, name FROM courses
+ORDER BY name;

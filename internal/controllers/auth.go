@@ -1,25 +1,20 @@
-package services
+package controllers
 
 import (
 	"log"
 	"strings"
 	"time"
 
+	"github.com/DedMoroz38/uni-dating-app/internal/config"
+	database "github.com/DedMoroz38/uni-dating-app/internal/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
-
-	"github.com/DedMoroz38/uni-dating-app/internal/config"
-	database "github.com/DedMoroz38/uni-dating-app/internal/db"
 )
 
 type AuthController struct {
-	db database.Querier
-}
-
-func NewAuthController(db database.Querier) *AuthController {
-	return &AuthController{db: db}
+	DB database.Querier
 }
 
 type LoginRequest struct {
@@ -28,9 +23,11 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name        string `json:"name"`
+	DateOfBirth string `json:"dateOfBirth"`
+	CourseID    int32  `json:"courseId"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
 }
 
 // @Summary Register a new user
@@ -58,25 +55,33 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to hash password"})
 	}
 
-	err = ac.db.CreateUser(c.Context(), database.CreateUserParams{
-		Username: req.Username,
+	dob, err := time.Parse(time.DateOnly, req.DateOfBirth)
+	if err != nil {
+		log.Println("Invalid date format for dateOfBirth", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid date format for dateOfBirth"})
+	}
+
+	userId, err := ac.DB.CreateUserAndReturnID(c.Context(), database.CreateUserAndReturnIDParams{
+		Name: req.Name,
+		DateOfBirth: pgtype.Date{
+			Time:  dob,
+			Valid: true,
+		},
 		Email:    req.Email,
 		Password: string(hashedPassword),
-		CreatedAt: pgtype.Timestamp{
-			Time:  time.Now(),
-			Valid: true,
-		},
-		UpdatedAt: pgtype.Timestamp{
-			Time:  time.Now(),
-			Valid: true,
-		},
+		CourseID: req.CourseID,
 	})
 	if err != nil {
 		log.Println("Failed to create user", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create user"})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "user registered successfully"})
+	token, err := createToken(userId)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
+	}
+
+	return c.JSON(fiber.Map{"token": token})
 }
 
 func (ac *AuthController) Login(c *fiber.Ctx) error {
@@ -85,7 +90,7 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "cannot parse request"})
 	}
 
-	user, err := ac.db.GetUserByEmail(c.Context(), req.Email)
+	user, err := ac.DB.GetUserByEmail(c.Context(), req.Email)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 	}

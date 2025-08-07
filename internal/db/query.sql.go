@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createCourse = `-- name: CreateCourse :one
+INSERT INTO courses (
+  name
+) VALUES (
+  $1
+) RETURNING id, name, created_at, updated_at
+`
+
+func (q *Queries) CreateCourse(ctx context.Context, name string) (Course, error) {
+	row := q.db.QueryRow(ctx, createCourse, name)
+	var i Course
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createImage = `-- name: CreateImage :exec
 INSERT INTO images (
     user_id,
@@ -33,54 +53,54 @@ func (q *Queries) CreateImage(ctx context.Context, arg CreateImageParams) error 
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
-  username, email, password, created_at, updated_at
+  name, date_of_birth, course_id, email, password
 ) VALUES (
   $1, $2, $3, $4, $5
 )
 `
 
 type CreateUserParams struct {
-	Username  string           `json:"username"`
-	Email     string           `json:"email"`
-	Password  string           `json:"password"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Name        string      `json:"name"`
+	DateOfBirth pgtype.Date `json:"date_of_birth"`
+	CourseID    int32       `json:"course_id"`
+	Email       string      `json:"email"`
+	Password    string      `json:"password"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser,
-		arg.Username,
+		arg.Name,
+		arg.DateOfBirth,
+		arg.CourseID,
 		arg.Email,
 		arg.Password,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	return err
 }
 
 const createUserAndReturnID = `-- name: CreateUserAndReturnID :one
 INSERT INTO users (
-  username, email, password, created_at, updated_at
+  name, date_of_birth, course_id, email, password
 ) VALUES (
   $1, $2, $3, $4, $5
 ) RETURNING id
 `
 
 type CreateUserAndReturnIDParams struct {
-	Username  string           `json:"username"`
-	Email     string           `json:"email"`
-	Password  string           `json:"password"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	Name        string      `json:"name"`
+	DateOfBirth pgtype.Date `json:"date_of_birth"`
+	CourseID    int32       `json:"course_id"`
+	Email       string      `json:"email"`
+	Password    string      `json:"password"`
 }
 
 func (q *Queries) CreateUserAndReturnID(ctx context.Context, arg CreateUserAndReturnIDParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createUserAndReturnID,
-		arg.Username,
+		arg.Name,
+		arg.DateOfBirth,
+		arg.CourseID,
 		arg.Email,
 		arg.Password,
-		arg.CreatedAt,
-		arg.UpdatedAt,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -90,8 +110,10 @@ func (q *Queries) CreateUserAndReturnID(ctx context.Context, arg CreateUserAndRe
 const getRandomUserWithImages = `-- name: GetRandomUserWithImages :one
 SELECT
     u.id,
-    u.username,
+    u.name,
     u.email,
+    u.date_of_birth,
+    u.course_id,
     u.created_at,
     u.updated_at,
     COALESCE(
@@ -108,12 +130,14 @@ LIMIT 1
 `
 
 type GetRandomUserWithImagesRow struct {
-	ID        int64            `json:"id"`
-	Username  string           `json:"username"`
-	Email     string           `json:"email"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-	Images    interface{}      `json:"images"`
+	ID          int64            `json:"id"`
+	Name        string           `json:"name"`
+	Email       string           `json:"email"`
+	DateOfBirth pgtype.Date      `json:"date_of_birth"`
+	CourseID    int32            `json:"course_id"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+	Images      interface{}      `json:"images"`
 }
 
 func (q *Queries) GetRandomUserWithImages(ctx context.Context) (GetRandomUserWithImagesRow, error) {
@@ -121,8 +145,10 @@ func (q *Queries) GetRandomUserWithImages(ctx context.Context) (GetRandomUserWit
 	var i GetRandomUserWithImagesRow
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
+		&i.Name,
 		&i.Email,
+		&i.DateOfBirth,
+		&i.CourseID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Images,
@@ -131,7 +157,7 @@ func (q *Queries) GetRandomUserWithImages(ctx context.Context) (GetRandomUserWit
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, email, password, name, date_of_birth, course_id, created_at, updated_at FROM users
 WHERE email = $1
 `
 
@@ -140,9 +166,11 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.Name,
+		&i.DateOfBirth,
+		&i.CourseID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -150,7 +178,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password, created_at, updated_at FROM users
+SELECT id, email, password, name, date_of_birth, course_id, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -159,9 +187,11 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.Name,
+		&i.DateOfBirth,
+		&i.CourseID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -178,4 +208,34 @@ SET n_of_likes = likes.n_of_likes + 1
 func (q *Queries) LikeUser(ctx context.Context, userID int32) error {
 	_, err := q.db.Exec(ctx, likeUser, userID)
 	return err
+}
+
+const listCourses = `-- name: ListCourses :many
+SELECT id, name FROM courses
+ORDER BY name
+`
+
+type ListCoursesRow struct {
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func (q *Queries) ListCourses(ctx context.Context) ([]ListCoursesRow, error) {
+	rows, err := q.db.Query(ctx, listCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCoursesRow{}
+	for rows.Next() {
+		var i ListCoursesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

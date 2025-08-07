@@ -8,25 +8,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Course struct {
+	ID        int32            `json:"id"`
+	Name      string           `json:"name"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+}
+
 type Image struct {
-	ID        int32              `json:"id"`
-	UserID    int32              `json:"user_id"`
-	Url       string             `json:"url"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID        int32            `json:"id"`
+	UserID    int32            `json:"user_id"`
+	Url       string           `json:"url"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 type Like struct {
-	ID        int32              `json:"id"`
-	UserID    int32              `json:"user_id"`
-	NOfLikes  int32              `json:"n_of_likes"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID        int32            `json:"id"`
+	UserID    int32            `json:"user_id"`
+	NOfLikes  int32            `json:"n_of_likes"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 type User struct {
-	ID        int64            `json:"id"`
-	Username  string           `json:"username"`
-	Email     string           `json:"email"`
-	Password  string           `json:"password"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	ID          int64            `json:"id"`
+	Email       string           `json:"email"`
+	Password    string           `json:"password"`
+	Name        string           `json:"name"`
+	DateOfBirth pgtype.Date      `json:"date_of_birth"`
+	CourseID    int32            `json:"course_id"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }

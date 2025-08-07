@@ -1,3 +1,10 @@
+CREATE TABLE courses (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE users (
   id   BIGSERIAL  NOT NULL PRIMARY KEY,
   email text    NOT NULL UNIQUE,
@@ -5,13 +12,6 @@ CREATE TABLE users (
   name text    NOT NULL,
   date_of_birth DATE    NOT NULL,
   course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE courses (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
   created_at timestamp DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp DEFAULT CURRENT_TIMESTAMP
 );

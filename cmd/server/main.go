@@ -48,6 +48,7 @@ func main() {
 	v1 := api.Group("/v1")
 
 	routes.AuthRoutes(v1, queries)
+	routes.CourseRoutes(v1, queries)
 
 	api.Use(middleware.Protected())
 

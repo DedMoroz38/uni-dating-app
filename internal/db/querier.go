@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	CreateCourse(ctx context.Context, name string) (Course, error)
 	CreateImage(ctx context.Context, arg CreateImageParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateUserAndReturnID(ctx context.Context, arg CreateUserAndReturnIDParams) (int64, error)
@@ -16,6 +17,7 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	LikeUser(ctx context.Context, userID int32) error
+	ListCourses(ctx context.Context) ([]ListCoursesRow, error)
 }
 
 var _ Querier = (*Queries)(nil)
