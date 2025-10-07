@@ -13,11 +13,16 @@ type Querier interface {
 	CreateImage(ctx context.Context, arg CreateImageParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateUserAndReturnID(ctx context.Context, arg CreateUserAndReturnIDParams) (int64, error)
+	DeleteImageByIDAndUserID(ctx context.Context, arg DeleteImageByIDAndUserIDParams) error
+	GetImageByID(ctx context.Context, id int32) (Image, error)
 	GetRandomUserWithImages(ctx context.Context) (GetRandomUserWithImagesRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByIDWithImages(ctx context.Context, id int64) (GetUserByIDWithImagesRow, error)
 	LikeUser(ctx context.Context, userID int32) error
 	ListCourses(ctx context.Context) ([]ListCoursesRow, error)
+	ListImagesByUserID(ctx context.Context, userID int32) ([]Image, error)
+	UpdateImageURLByIDAndUserID(ctx context.Context, arg UpdateImageURLByIDAndUserIDParams) error
 }
 
 var _ Querier = (*Queries)(nil)

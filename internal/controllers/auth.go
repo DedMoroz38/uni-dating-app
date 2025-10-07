@@ -22,6 +22,13 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type LoginResponse struct {
+	Token string `json:"token"`
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 type RegisterRequest struct {
 	Name        string `json:"name"`
 	DateOfBirth string `json:"dateOfBirth"`
@@ -84,6 +91,17 @@ func (ac *AuthController) Register(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"token": token})
 }
 
+// @Summary Login a user
+// @Description Login a user with email and password.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param login body LoginRequest true "Login Request"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /auth/login [post]
 func (ac *AuthController) Login(c *fiber.Ctx) error {
 	var req LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -104,7 +122,12 @@ func (ac *AuthController) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not create token"})
 	}
 
-	return c.JSON(fiber.Map{"token": token})
+	return c.JSON(fiber.Map{
+		"token": token,
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+	})
 }
 
 func createToken(ID int64) (string, error) {

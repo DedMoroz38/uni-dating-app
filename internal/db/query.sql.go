@@ -107,6 +107,39 @@ func (q *Queries) CreateUserAndReturnID(ctx context.Context, arg CreateUserAndRe
 	return id, err
 }
 
+const deleteImageByIDAndUserID = `-- name: DeleteImageByIDAndUserID :exec
+DELETE FROM images
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteImageByIDAndUserIDParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+func (q *Queries) DeleteImageByIDAndUserID(ctx context.Context, arg DeleteImageByIDAndUserIDParams) error {
+	_, err := q.db.Exec(ctx, deleteImageByIDAndUserID, arg.ID, arg.UserID)
+	return err
+}
+
+const getImageByID = `-- name: GetImageByID :one
+SELECT id, user_id, url, created_at, updated_at FROM images
+WHERE id = $1
+`
+
+func (q *Queries) GetImageByID(ctx context.Context, id int32) (Image, error) {
+	row := q.db.QueryRow(ctx, getImageByID, id)
+	var i Image
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Url,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getRandomUserWithImages = `-- name: GetRandomUserWithImages :one
 SELECT
     u.id,
@@ -198,6 +231,54 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const getUserByIDWithImages = `-- name: GetUserByIDWithImages :one
+SELECT
+    u.id,
+    u.name,
+    u.email,
+    u.date_of_birth,
+    u.course_id,
+    u.created_at,
+    u.updated_at,
+    COALESCE(
+        (SELECT json_agg(json_build_object('id', i.id, 'url', i.url))
+        FROM images i
+        WHERE i.user_id = u.id),
+        '[]'::json
+    ) AS images
+FROM
+    users u
+WHERE u.id = $1
+LIMIT 1
+`
+
+type GetUserByIDWithImagesRow struct {
+	ID          int64            `json:"id"`
+	Name        string           `json:"name"`
+	Email       string           `json:"email"`
+	DateOfBirth pgtype.Date      `json:"date_of_birth"`
+	CourseID    int32            `json:"course_id"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+	Images      interface{}      `json:"images"`
+}
+
+func (q *Queries) GetUserByIDWithImages(ctx context.Context, id int64) (GetUserByIDWithImagesRow, error) {
+	row := q.db.QueryRow(ctx, getUserByIDWithImages, id)
+	var i GetUserByIDWithImagesRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.DateOfBirth,
+		&i.CourseID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Images,
+	)
+	return i, err
+}
+
 const likeUser = `-- name: LikeUser :exec
 INSERT INTO likes (user_id, n_of_likes)
 VALUES ($1, 1)
@@ -238,4 +319,54 @@ func (q *Queries) ListCourses(ctx context.Context) ([]ListCoursesRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listImagesByUserID = `-- name: ListImagesByUserID :many
+SELECT id, user_id, url, created_at, updated_at FROM images
+WHERE user_id = $1
+ORDER BY created_at
+`
+
+func (q *Queries) ListImagesByUserID(ctx context.Context, userID int32) ([]Image, error) {
+	rows, err := q.db.Query(ctx, listImagesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Image{}
+	for rows.Next() {
+		var i Image
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateImageURLByIDAndUserID = `-- name: UpdateImageURLByIDAndUserID :exec
+UPDATE images
+SET url = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $2 AND user_id = $3
+`
+
+type UpdateImageURLByIDAndUserIDParams struct {
+	Url    string `json:"url"`
+	ID     int32  `json:"id"`
+	UserID int32  `json:"user_id"`
+}
+
+func (q *Queries) UpdateImageURLByIDAndUserID(ctx context.Context, arg UpdateImageURLByIDAndUserIDParams) error {
+	_, err := q.db.Exec(ctx, updateImageURLByIDAndUserID, arg.Url, arg.ID, arg.UserID)
+	return err
 }

@@ -25,6 +25,26 @@ func (uc *UserController) Me(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "user retrieved"})
 }
 
+// GetMyImages returns URLs of all images for the authenticated user
+func (uc *UserController) GetMyImages(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get user ID from context"})
+	}
+
+	images, err := uc.DB.ListImagesByUserID(c.Context(), int32(userID))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch images"})
+	}
+
+	urls := make([]string, 0, len(images))
+	for _, img := range images {
+		urls = append(urls, strings.TrimPrefix(img.Url, "./"))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"images": urls})
+}
+
 func (uc *UserController) UploadImages(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -157,4 +177,108 @@ func (uc *UserController) Seed(c *fiber.Ctx) error {
 		}
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "users seeded successfully"})
+}
+
+// UpdateImage updates an existing image (by image ID) for the authenticated user.
+// Requires multipart/form-data with a single file field named "image".
+func (uc *UserController) UpdateImage(c *fiber.Ctx) error {
+	// Parse and validate image ID
+	imageIDParam := c.Params("imageId")
+	imageID64, err := strconv.ParseInt(imageIDParam, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid image ID"})
+	}
+	imageID := int32(imageID64)
+
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get user ID from context"})
+	}
+
+	// Fetch existing image and verify ownership
+	existing, err := uc.DB.GetImageByID(c.Context(), imageID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "image not found"})
+	}
+	if existing.UserID != int32(userID) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "unknown error"})
+	}
+
+	// Read new file from form
+	file, err := c.FormFile("image")
+	if err != nil || file == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no image file provided"})
+	}
+
+	// Save new file
+	filename := filepath.Base(file.Filename)
+	newPath := filepath.Join("./uploads", filename)
+	if err := c.SaveFile(file, newPath); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "cannot save new image file"})
+	}
+
+	// Update DB with new path, scoped by image id and user id
+	if err := uc.DB.UpdateImageURLByIDAndUserID(c.Context(), db.UpdateImageURLByIDAndUserIDParams{
+		Url:    newPath,
+		ID:     imageID,
+		UserID: int32(userID),
+	}); err != nil {
+		// Rollback file save on DB failure
+		_ = os.Remove(newPath)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update image"})
+	}
+
+	// Attempt to remove old file; non-fatal if it fails
+	if existing.Url != "" {
+		_ = os.Remove(existing.Url)
+	}
+
+	// Return updated resource data (path without leading ./ for client)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"id":  imageID,
+		"url": strings.TrimPrefix(newPath, "./"),
+	})
+}
+
+// RemoveImage removes an existing image (by image ID) for the authenticated user.
+// This is implemented as a PUT endpoint per requirement, using the path: /user/images/:imageId/remove
+func (uc *UserController) RemoveImage(c *fiber.Ctx) error {
+	// Parse and validate image ID
+	imageIDParam := c.Params("imageId")
+	imageID64, err := strconv.ParseInt(imageIDParam, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid image ID"})
+	}
+	imageID := int32(imageID64)
+
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get user ID from context"})
+	}
+
+	// Fetch existing image and verify ownership
+	existing, err := uc.DB.GetImageByID(c.Context(), imageID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "image not found"})
+	}
+	if existing.UserID != int32(userID) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "you are not the owner of this image"})
+	}
+
+	// Delete DB record (ownership enforced by query params)
+	if err := uc.DB.DeleteImageByIDAndUserID(c.Context(), db.DeleteImageByIDAndUserIDParams{
+		ID:     imageID,
+		UserID: int32(userID),
+	}); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to remove image"})
+	}
+
+	// Attempt to remove the file from disk; ignore errors to avoid partial failure surfacing
+	if existing.Url != "" {
+		_ = os.Remove(existing.Url)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "image removed"})
 }

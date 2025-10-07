@@ -53,6 +53,7 @@ func main() {
 	api.Use(middleware.Protected())
 
 	routes.UserRoutes(v1, queries)
+	routes.ProfileRoutes(v1, queries)
 
 	log.Fatal(app.Listen(":3000"))
 }
