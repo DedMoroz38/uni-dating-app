@@ -29,6 +29,20 @@ INSERT INTO images (
     $2
 );
 
+-- name: GetImageByID :one
+SELECT id, user_id, url, created_at, updated_at FROM images
+WHERE id = $1;
+
+-- name: DeleteImageByIDAndUserID :exec
+DELETE FROM images
+WHERE id = $1 AND user_id = $2;
+
+-- name: UpdateImageURLByIDAndUserID :exec
+UPDATE images
+SET url = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $2 AND user_id = $3;
+
 -- name: GetRandomUserWithImages :one
 SELECT
     u.id,
@@ -56,6 +70,26 @@ VALUES ($1, 1)
 ON CONFLICT (user_id) DO UPDATE
 SET n_of_likes = likes.n_of_likes + 1;
 
+-- name: GetUserByIDWithImages :one
+SELECT
+    u.id,
+    u.name,
+    u.email,
+    u.date_of_birth,
+    u.course_id,
+    u.created_at,
+    u.updated_at,
+    COALESCE(
+        (SELECT json_agg(json_build_object('id', i.id, 'url', i.url))
+        FROM images i
+        WHERE i.user_id = u.id),
+        '[]'::json
+    ) AS images
+FROM
+    users u
+WHERE u.id = $1
+LIMIT 1;
+
 -- name: CreateCourse :one
 INSERT INTO courses (
   name
@@ -66,3 +100,8 @@ INSERT INTO courses (
 -- name: ListCourses :many
 SELECT id, name FROM courses
 ORDER BY name;
+
+-- name: ListImagesByUserID :many
+SELECT id, user_id, url, created_at, updated_at FROM images
+WHERE user_id = $1
+ORDER BY created_at;

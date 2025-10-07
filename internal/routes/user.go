@@ -13,7 +13,10 @@ func UserRoutes(router fiber.Router, queries *db.Queries) {
 	}
 
 	userRoutes.Get("/me", uc.Me)
+	userRoutes.Get("/images", uc.GetMyImages)
 	userRoutes.Post("/images", uc.UploadImages)
+	userRoutes.Put("/images/:imageId", uc.UpdateImage)
+	userRoutes.Put("/images/:imageId/remove", uc.RemoveImage)
 	userRoutes.Get("/card/get_random", uc.GetRandomUser)
 	userRoutes.Post("/like/:userId", uc.LikeUser)
 
